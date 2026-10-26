@@ -751,7 +751,7 @@ var PERSONAS={
   lider:{uid:"u-ld",email:CFG.LIDERES[0],nome:"Liderança (exemplo)"},
   acordos:{uid:"u-ac",email:"acordos@exemplo.local",nome:"Gabriela (exemplo)"}
 };
-var S={mode:"demo",persona:"equipe",user:null,perfil:{},isLider:false,tab:"",pedidos:[],loaded:false,agenda:[],agLoaded:false,agErr:"",advNome:"",agSem:"",agFil:{formato:"",adv:""},equipeLista:[],unsubAg:null,unsubEq:null,acordos:[],acLoaded:false,acErr:"",acSem:"",acFil:{est:"pend",q:""},acOpen:{},acPend:false,papel:"",unsubAc:null,reads:{},open:{},msgs:{},msgUnsub:{},anex:{},anexUnsub:{},reply:{},
+var S={mode:"demo",persona:"equipe",user:null,perfil:{},isLider:false,tab:"",pedidos:[],loaded:false,agenda:[],agLoaded:false,agErr:"",advNome:"",agSem:"",agFil:{formato:"",adv:""},equipeLista:[],unsubAg:null,unsubEq:null,acordos:[],acLoaded:false,acErr:"",acSem:"",acFil:{est:"pend",q:"",trt:"",wa:"",em:""},acOpen:{},acPend:false,papel:"",unsubAc:null,reads:{},open:{},msgs:{},msgUnsub:{},anex:{},anexUnsub:{},reply:{},
   fil:{tipo:"",status:"abertos",urg:"",autor:"",q:""},filMeus:"todos",editId:null,draft:null,cards:{},unsub:null,err:"",
   per:{modo:"semana",ref:dateKey0(),ini:"",fim:""},relBar:null,listBox:null,statsBox:null,chipsBox:null,countBox:null,autorSel:null,autorSig:"",signupNome:"",draftT:null};
 
@@ -1634,7 +1634,7 @@ function semPadrao(){
 }
 function startAgenda(){
   var tok=S.agTok=(S.agTok||0)+1;
-  S.agenda=[];S.agLoaded=false;S.agErr="";S.advNome="";S.agSem="";S.agFil={formato:"",adv:""};S.papel="";
+  S.agenda=[];S.agLoaded=false;S.agErr="";S.advNome="";S.agSem="";S.agFil={formato:"",adv:"",dia:"",tipo:"",trt:"",ord:""};S.papel="";
   var onData=function(l){
     if(tok!==S.agTok)return;
     S.agenda=l;S.agLoaded=true;S.agErr="";
@@ -1666,6 +1666,16 @@ function startAgenda(){
 function viewAgenda(root){
   root.appendChild(h("div",{id:"ag-box"}));
   renderAgenda();
+}
+function trtDe(a){
+  var n=a&&a.trt?+a.trt:0;
+  if(!n){var m=/\.5\.(\d{2})\./.exec(String((a&&a.processo)||""));if(m)n=+m[1];}
+  return n||0;
+}
+function selFil(id,rot,opts,val,onch){
+  var sel=h("select",{id:id,"aria-label":rot,onchange:function(){onch(this.value);}});
+  opts.forEach(function(o){sel.appendChild(h("option",{value:o[0],text:o[1],selected:String(val)===String(o[0])}));});
+  return h("div",{class:"field"},h("label",{for:id,text:rot}),sel);
 }
 function renderAgenda(){
   var box=$("#ag-box");if(!box)return;clear(box);
@@ -1704,18 +1714,48 @@ function renderAgenda(){
     EQUIPE_AUD.forEach(function(n){chip(n,n,cont[n]||0,colorAdv(n));});
     chip("__corr","Correspondentes",corr,"#475569");
   }
+  var dias={},tipos={},trts={};
+  daSemana.forEach(function(a){if(a.dia)dias[a.dia]=1;if(a.tipo)tipos[a.tipo]=1;var tn=trtDe(a);if(tn)trts[tn]=1;});
+  var F=S.agFil;
+  if(F.dia&&!dias[F.dia])F.dia="";if(F.tipo&&!tipos[F.tipo])F.tipo="";if(F.trt&&!trts[F.trt])F.trt="";
+  var optDia=[["","Todos os dias"]].concat(Object.keys(dias).sort().map(function(d){return [d,DIAS_SEM[parseKey(d).getDay()]+", "+br(d).slice(0,5)];}));
+  var optTipo=[["","Todos os tipos"]].concat(Object.keys(tipos).sort().map(function(t){return [t,t];}));
+  var optTrt=[["","Todos os TRTs"]].concat(Object.keys(trts).map(Number).sort(function(x,y){return x-y;}).map(function(t){return [String(t),"TRT "+t];}));
+  var optOrd=[["","Dia e horário"],["maior","Maior valor da ação"],["menor","Menor valor da ação"]];
+  var ativos=!!(F.dia||F.tipo||F.trt||F.ord||F.formato||(S.isLider&&F.adv));
+  box.appendChild(h("div",{class:"filters"},
+    selFil("agf-dia","Dia",optDia,F.dia,function(v){F.dia=v;renderAgenda();}),
+    selFil("agf-tipo","Tipo de audiência",optTipo,F.tipo,function(v){F.tipo=v;renderAgenda();}),
+    selFil("agf-trt","TRT",optTrt,F.trt,function(v){F.trt=v;renderAgenda();}),
+    selFil("agf-ord","Ordenar por",optOrd,F.ord,function(v){F.ord=v;renderAgenda();}),
+    ativos?h("div",{class:"field",style:"align-self:end"},h("button",{class:"btn ghost sm",type:"button",text:"Limpar filtros",onclick:function(){S.agFil={formato:"",adv:"",dia:"",tipo:"",trt:"",ord:""};renderAgenda();}})):null));
   var lista=daSemana.filter(function(a){
     var v=String(a.formato||"").toLowerCase().indexOf("virtual")===0;
+    if(F.dia&&a.dia!==F.dia)return false;
+    if(F.tipo&&a.tipo!==F.tipo)return false;
+    if(F.trt&&String(trtDe(a))!==String(F.trt))return false;
     if(S.agFil.formato==="virtual"&&!v)return false;
     if(S.agFil.formato==="presencial"&&v)return false;
     if(S.isLider&&S.agFil.adv){if(S.agFil.adv==="__corr"){if(!ehCorrespondente(a.adv))return false;}else if(a.adv!==S.agFil.adv)return false;}
     return true;
-  }).sort(function(a,b){return (a.dia+a.hora).localeCompare(b.dia+b.hora);});
+  }).sort(function(a,b){
+    if(F.ord){
+      var va=typeof a.valor==="number"?a.valor:null,vb=typeof b.valor==="number"?b.valor:null;
+      if(va===null&&vb!==null)return 1;if(vb===null&&va!==null)return -1;
+      if(va!==vb)return F.ord==="maior"?vb-va:va-vb;
+    }
+    return (a.dia+a.hora).localeCompare(b.dia+b.hora);
+  });
   var nv=lista.filter(function(a){return String(a.formato||"").toLowerCase().indexOf("virtual")===0;}).length;
   box.appendChild(h("p",{class:"muted",text:lista.length+" audiência(s) · "+(lista.length-nv)+" presencial(is) · "+nv+" virtual(is)"}));
   if(!lista.length){box.appendChild(h("p",{text:"Nenhuma audiência com esses filtros."}));return;}
   var hojeK=dateKey0(),dia="",sec=null;
   lista.forEach(function(a){
+    if(F.ord){
+      var it=itemAgenda(a),hr=it.querySelector(".ag-hora");
+      if(hr){clear(hr);hr.appendChild(document.createTextNode(br(a.dia).slice(0,5)));hr.appendChild(h("br"));hr.appendChild(document.createTextNode(a.hora||""));}
+      box.appendChild(it);return;
+    }
     if(a.dia!==dia){
       dia=a.dia;
       var n=lista.filter(function(x){return x.dia===dia;}).length;
@@ -2032,6 +2072,17 @@ function renderAcordos(){
   q.addEventListener("input",function(){S.acFil.q=q.value;renderAcLista();});
   bar.appendChild(h("div",{class:"field",style:"margin:0;min-width:220px"},q));
   box.appendChild(bar);
+  var daSemAc=S.acordos.filter(function(a){return a.semana===S.acSem;}),trtsAc={};
+  daSemAc.forEach(function(a){var tn=trtDe(a);if(tn)trtsAc[tn]=1;});
+  var AF=S.acFil;if(AF.trt&&!trtsAc[AF.trt])AF.trt="";
+  var optTrtAc=[["","Todos os TRTs"]].concat(Object.keys(trtsAc).map(Number).sort(function(x,y){return x-y;}).map(function(t){return [String(t),"TRT "+t];}));
+  var optSimNao=function(r){return [["",r+": todos"],["com","Com "+r],["sem","Sem "+r]];};
+  var temFil=!!(AF.trt||AF.wa||AF.em);
+  box.appendChild(h("div",{class:"filters"},
+    selFil("acf-trt","TRT",optTrtAc,AF.trt,function(v){AF.trt=v;renderAcordos();}),
+    selFil("acf-wa","WhatsApp",[["","Todos"],["com","Com número de WhatsApp"],["sem","Sem número de WhatsApp"]],AF.wa,function(v){AF.wa=v;renderAcordos();}),
+    selFil("acf-em","E-mail",[["","Todos"],["com","Com e-mail"],["sem","Sem e-mail"]],AF.em,function(v){AF.em=v;renderAcordos();}),
+    temFil?h("div",{class:"field",style:"align-self:end"},h("button",{class:"btn ghost sm",type:"button",text:"Limpar filtros",onclick:function(){AF.trt="";AF.wa="";AF.em="";renderAcordos();}})):null));
   box.appendChild(h("div",{id:"ac-resumo",class:"muted"}));
   box.appendChild(h("div",{id:"ac-lista"}));
   renderAcLista();
@@ -2053,6 +2104,10 @@ function renderAcLista(){
     if(S.acFil.est==="pend"&&p===5)return false;
     if(S.acFil.est==="conc"&&p<5)return false;
     if(q&&norm([a.processo,a.reclamante,a.reclamadas].join(" ")).indexOf(q)<0)return false;
+    if(S.acFil.trt&&String(trtDe(a))!==String(S.acFil.trt))return false;
+    var cts=a.contatos||[],temWa=cts.some(function(c){return !!c.wa;}),temEm=cts.some(function(c){return c.emails&&c.emails.length;});
+    if(S.acFil.wa==="com"&&!temWa)return false;if(S.acFil.wa==="sem"&&temWa)return false;
+    if(S.acFil.em==="com"&&!temEm)return false;if(S.acFil.em==="sem"&&temEm)return false;
     return true;
   }).sort(function(a,b){return (a.dia+a.hora).localeCompare(b.dia+b.hora);});
   if(!itens.length){lista.appendChild(h("p",{text:"Nenhum processo com esses filtros."}));return;}
