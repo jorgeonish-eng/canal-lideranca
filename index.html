@@ -1713,6 +1713,7 @@ function renderAgenda(){
     chip("","Toda a equipe",daSemana.length,null);
     EQUIPE_AUD.forEach(function(n){chip(n,n,cont[n]||0,colorAdv(n));});
     chip("__corr","Correspondentes",corr,"#475569");
+    box.appendChild(chips);
   }
   var dias={},tipos={},trts={};
   daSemana.forEach(function(a){if(a.dia)dias[a.dia]=1;if(a.tipo)tipos[a.tipo]=1;var tn=trtDe(a);if(tn)trts[tn]=1;});
