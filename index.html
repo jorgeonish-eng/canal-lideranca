@@ -751,7 +751,7 @@ var PERSONAS={
   lider:{uid:"u-ld",email:CFG.LIDERES[0],nome:"Liderança (exemplo)"},
   acordos:{uid:"u-ac",email:"acordos@exemplo.local",nome:"Gabriela (exemplo)"}
 };
-var S={mode:"demo",persona:"equipe",user:null,perfil:{},isLider:false,tab:"",pedidos:[],loaded:false,agenda:[],agLoaded:false,agErr:"",advNome:"",agSem:"",agFil:{formato:"",adv:""},equipeLista:[],unsubAg:null,unsubEq:null,acordos:[],acLoaded:false,acErr:"",acSem:"",acFil:{est:"pend",q:"",trt:"",wa:"",em:""},acOpen:{},acPend:false,papel:"",unsubAc:null,reads:{},open:{},msgs:{},msgUnsub:{},anex:{},anexUnsub:{},reply:{},
+var S={mode:"demo",persona:"equipe",user:null,perfil:{},isLider:false,tab:"",pedidos:[],loaded:false,agenda:[],agLoaded:false,agErr:"",advNome:"",agSem:"",agFil:{formato:"",advs:[]},equipeLista:[],unsubAg:null,unsubEq:null,acordos:[],acLoaded:false,acErr:"",acSem:"",acFil:{est:"pend",q:"",trt:"",wa:"",em:""},acOpen:{},acPend:false,papel:"",unsubAc:null,reads:{},open:{},msgs:{},msgUnsub:{},anex:{},anexUnsub:{},reply:{},
   fil:{tipo:"",status:"abertos",urg:"",autor:"",q:""},filMeus:"todos",editId:null,draft:null,cards:{},unsub:null,err:"",
   per:{modo:"semana",ref:dateKey0(),ini:"",fim:""},relBar:null,listBox:null,statsBox:null,chipsBox:null,countBox:null,autorSel:null,autorSig:"",signupNome:"",draftT:null};
 
@@ -1634,7 +1634,7 @@ function semPadrao(){
 }
 function startAgenda(){
   var tok=S.agTok=(S.agTok||0)+1;
-  S.agenda=[];S.agLoaded=false;S.agErr="";S.advNome="";S.agSem="";S.agFil={formato:"",adv:"",dia:"",tipo:"",trt:"",ord:""};S.papel="";
+  S.agenda=[];S.agLoaded=false;S.agErr="";S.advNome="";S.agSem="";S.agFil={formato:"",advs:[],dia:"",tipo:"",trt:"",ord:""};S.papel="";
   var onData=function(l){
     if(tok!==S.agTok)return;
     S.agenda=l;S.agLoaded=true;S.agErr="";
@@ -1707,13 +1707,14 @@ function renderAgenda(){
     daSemana.forEach(function(a){if(ehCorrespondente(a.adv))corr++;else cont[a.adv]=(cont[a.adv]||0)+1;});
     var chips=h("div",{class:"chips",role:"group","aria-label":"Responsável"});
     var chip=function(val,rot,n,cor){
-      chips.appendChild(h("button",{type:"button",class:"chip cadv","aria-pressed":S.agFil.adv===val?"true":"false",style:cor?"--ac:"+cor:null,onclick:function(){S.agFil.adv=val;renderAgenda();}},
+      chips.appendChild(h("button",{type:"button",class:"chip cadv","aria-pressed":(val===""?!S.agFil.advs.length:S.agFil.advs.indexOf(val)>=0)?"true":"false",style:cor?"--ac:"+cor:null,onclick:function(){var a=S.agFil.advs,k=a.indexOf(val);if(val==="")a.length=0;else if(k>=0)a.splice(k,1);else a.push(val);renderAgenda();}},
         cor?h("span",{class:"dot","aria-hidden":"true"}):null,rot,h("span",{class:"n",text:String(n)})));
     };
     chip("","Toda a equipe",daSemana.length,null);
     EQUIPE_AUD.forEach(function(n){chip(n,n,cont[n]||0,colorAdv(n));});
     chip("__corr","Correspondentes",corr,"#475569");
     box.appendChild(chips);
+    box.appendChild(h("p",{class:"hint",style:"margin:-12px 0 16px",text:"Clique em um ou mais nomes para ver só essas audiências. Em Toda a equipe, aparecem todas."}));
   }
   var dias={},tipos={},trts={};
   daSemana.forEach(function(a){if(a.dia)dias[a.dia]=1;if(a.tipo)tipos[a.tipo]=1;var tn=trtDe(a);if(tn)trts[tn]=1;});
@@ -1723,13 +1724,13 @@ function renderAgenda(){
   var optTipo=[["","Todos os tipos"]].concat(Object.keys(tipos).sort().map(function(t){return [t,t];}));
   var optTrt=[["","Todos os TRTs"]].concat(Object.keys(trts).map(Number).sort(function(x,y){return x-y;}).map(function(t){return [String(t),"TRT "+t];}));
   var optOrd=[["","Dia e horário"],["maior","Maior valor da ação"],["menor","Menor valor da ação"]];
-  var ativos=!!(F.dia||F.tipo||F.trt||F.ord||F.formato||(S.isLider&&F.adv));
+  var ativos=!!(F.dia||F.tipo||F.trt||F.ord||F.formato||(S.isLider&&F.advs&&F.advs.length));
   box.appendChild(h("div",{class:"filters"},
     selFil("agf-dia","Dia",optDia,F.dia,function(v){F.dia=v;renderAgenda();}),
     selFil("agf-tipo","Tipo de audiência",optTipo,F.tipo,function(v){F.tipo=v;renderAgenda();}),
     selFil("agf-trt","TRT",optTrt,F.trt,function(v){F.trt=v;renderAgenda();}),
     selFil("agf-ord","Ordenar por",optOrd,F.ord,function(v){F.ord=v;renderAgenda();}),
-    ativos?h("div",{class:"field",style:"align-self:end"},h("button",{class:"btn ghost sm",type:"button",text:"Limpar filtros",onclick:function(){S.agFil={formato:"",adv:"",dia:"",tipo:"",trt:"",ord:""};renderAgenda();}})):null));
+    ativos?h("div",{class:"field",style:"align-self:end"},h("button",{class:"btn ghost sm",type:"button",text:"Limpar filtros",onclick:function(){S.agFil={formato:"",advs:[],dia:"",tipo:"",trt:"",ord:""};renderAgenda();}})):null));
   var lista=daSemana.filter(function(a){
     var v=String(a.formato||"").toLowerCase().indexOf("virtual")===0;
     if(F.dia&&a.dia!==F.dia)return false;
@@ -1737,7 +1738,7 @@ function renderAgenda(){
     if(F.trt&&String(trtDe(a))!==String(F.trt))return false;
     if(S.agFil.formato==="virtual"&&!v)return false;
     if(S.agFil.formato==="presencial"&&v)return false;
-    if(S.isLider&&S.agFil.adv){if(S.agFil.adv==="__corr"){if(!ehCorrespondente(a.adv))return false;}else if(a.adv!==S.agFil.adv)return false;}
+    if(S.isLider&&S.agFil.advs.length&&!S.agFil.advs.some(function(v){return v==="__corr"?ehCorrespondente(a.adv):a.adv===v;}))return false;
     return true;
   }).sort(function(a,b){
     if(F.ord){
