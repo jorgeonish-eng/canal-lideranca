@@ -1743,7 +1743,7 @@ function itemAgenda(a){
   var tags=h("div",{class:"ag-tags"},
     h("span",{class:"tag "+(virt?"virtual":"presencial"),text:a.formato||""}),
     h("span",{class:"tag adv",text:a.tipo||""}),
-    S.isLider&&a.adv?advChip(a.adv):null);
+    S.isLider?(a.adv?advChip(a.adv):h("span",{class:"advchip",style:"--ac:#a83440",text:"Sem responsável"})):null);
   var partes=[a.reclamante,a.reclamadas].filter(Boolean).join(" x ");
   var proc=h("div",{class:"ag-link"},h("span",{class:"ag-proc",text:a.processo||""}),
     a.processo?h("button",{class:"btn ghost sm",type:"button",text:"Copiar nº",onclick:function(){copiar(a.processo);}}):null,
@@ -1817,6 +1817,7 @@ function lerAgenda(buf){
       valor:parseValor(cel(r,"valor")),link:lk,reuniao:nz(cel(r,"reuniao")),senha:nz(cel(r,"senha")),atencao:String(cel(r,"atencao")||"").trim(),oportunidade:String(cel(r,"oportunidade")||"").trim(),adv:adv,advKey:norm(adv),semana:mondayKey(parseKey(dia)),importadoEm:Date.now()};
   }
   var lista=Object.keys(out).map(function(k){return out[k];});
+  if(lista.length&&!lista.some(function(a){return a.adv;}))throw new Error("A planilha não traz o advogado responsável de nenhuma audiência. Use o arquivo Agenda_semana, que tem a coluna Advogado responsável, e não a planilha Audiências e acordos sozinha.");
   var cont=lerContatos(wb),acordos=lista.map(function(a){
     var x=extra[a.id]||{};
     return {id:a.id,dia:a.dia,hora:a.hora,formato:a.formato,tipo:a.tipo,vara:a.vara,processo:a.processo,reclamante:a.reclamante,reclamadas:a.reclamadas,valor:a.valor,adv:a.adv,semana:a.semana,
