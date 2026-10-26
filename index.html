@@ -309,7 +309,11 @@ dl.det a{color:var(--brand-navy-text)}
 .ag-hora{font:600 22px/1.1 var(--serif);color:var(--brand-navy-text)}
 .ag-main{display:flex;flex-direction:column;gap:6px;min-width:0}
 .ag-tags{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
-.tag.virtual{--c:var(--brand-navy-text)}.tag.presencial{--c:var(--warning)}.tag.adv{--c:var(--text-secondary)}
+.tag.adv{--c:var(--text-secondary)}
+.tag.virtual{background:#16c060;border-color:#16c060;color:#04210f;font-weight:700}
+.tag.presencial{background:#8b5e3c;border-color:#8b5e3c;color:#fff;font-weight:700}
+.ag-item.v{border-left:6px solid #16c060;background:linear-gradient(90deg,rgba(22,192,96,.10),transparent 55%),var(--surface-0)}
+.ag-item.p{border-left:6px solid #8b5e3c;background:linear-gradient(90deg,rgba(139,94,60,.12),transparent 55%),var(--surface-0)}
 .ag-vara{font:600 16px/1.3 var(--serif);overflow-wrap:anywhere}
 .ag-meta{font-size:13px;color:var(--text-secondary);overflow-wrap:anywhere}
 .ag-proc{font:500 14px ui-monospace,Menlo,Consolas,monospace;overflow-wrap:anywhere}
@@ -318,6 +322,8 @@ dl.det a{color:var(--brand-navy-text)}
 .ag-link .k{font-size:13px;color:var(--text-secondary)}
 .ag-link code{font:500 13px ui-monospace,Menlo,Consolas,monospace;background:var(--surface-100);padding:2px 6px}
 .ag-pend{font-size:13px;color:var(--warning)}
+.ag-note{border-left:3px solid var(--c,var(--border-strong));padding:2px 0 2px 10px;font-size:14px;overflow-wrap:anywhere}
+.ag-note b{display:block;font:600 11px var(--sans);letter-spacing:.12em;text-transform:uppercase;color:var(--c,var(--text-secondary));margin-bottom:2px}
 .ag-eq{display:grid;grid-template-columns:1fr auto auto;gap:8px;align-items:center;padding:8px 0;border-top:1px solid var(--border-subtle)}
 .ag-eq:first-child{border-top:0}
 @media (max-width:560px){.ag-item{grid-template-columns:1fr}.ag-hora{font-size:20px}}
@@ -592,6 +598,9 @@ var Demo=(function(){
     mk(0,"14:00","Presencial","Instrução","8ª Vara do Trabalho de São Bernardo do Campo","1000000-00.2026.5.02.0002","BELTRANO (EXEMPLO)","OUTRA EMPRESA S.A.",19995.31,"Simone Lino");
     mk(2,"10:15","Virtual","Inicial","81ª Vara do Trabalho do Rio de Janeiro","1000000-00.2026.5.01.0003","CICLANO (EXEMPLO)","MAIS UMA LTDA",152000,"Jorge Onishi","https://trt1-jus-br.zoom.us/my/exemplo","","");
     mk(3,"11:00","Virtual","Una","2ª Vara do Trabalho de Blumenau","1000000-00.2026.5.12.0004","EXEMPLO DA SILVA","TERCEIRA LTDA",100164.69,"Simone Lino");
+    agenda[0].atencao="Exemplo: a defesa impugna a jornada e os controles de ponto.";
+    agenda[0].oportunidade="Exemplo: negociar primeiro as diferenças rescisórias, com base nos contracheques.";
+    agenda[1].atencao="Exemplo: laudo pericial impugnado quanto ao enquadramento.";
   })();
   function snap(){return JSON.parse(JSON.stringify(pedidos));}
   function notify(){subs.slice().forEach(function(s){s.fire();});}
@@ -1520,6 +1529,19 @@ function renderAgenda(){
     box.appendChild(itemAgenda(a));
   });
 }
+function erroNoProcesso(a){
+  var d=lerRascunho();
+  var tem=!!(d.tipo&&Object.keys(d.v||{}).some(function(k){var o=d.v[k]||{};return Object.keys(o).some(function(x){return String(o[x]||"").trim();});}));
+  function aplica(){
+    var v={processo:a.processo||"",partes:[a.reclamante,a.reclamadas].filter(Boolean).join(" x "),dataAudiencia:a.dia||""};
+    var str=JSON.stringify({tipo:"erro",v:{erro:v},urg:"normal",pr:{d:"",h:""}});
+    S.perfil.rascunho=str;
+    Store.saveDraft(S.user.uid,str).catch(function(){});
+    S.editId=null;go("novo");
+  }
+  if(tem)confirmar("Substituir rascunho","Você tem um pedido em rascunho. Registrar o erro deste processo vai substituí-lo.","Substituir").then(function(ok){if(ok)aplica();});
+  else aplica();
+}
 function itemAgenda(a){
   var virt=String(a.formato||"").toLowerCase().indexOf("virtual")===0;
   var tags=h("div",{class:"ag-tags"},
@@ -1528,12 +1550,15 @@ function itemAgenda(a){
     S.isLider&&a.adv?h("span",{class:"tag lead",text:a.adv}):null);
   var partes=[a.reclamante,a.reclamadas].filter(Boolean).join(" x ");
   var proc=h("div",{class:"ag-link"},h("span",{class:"ag-proc",text:a.processo||""}),
-    a.processo?h("button",{class:"btn ghost sm",type:"button",text:"Copiar nº",onclick:function(){copiar(a.processo);}}):null);
+    a.processo?h("button",{class:"btn ghost sm",type:"button",text:"Copiar nº",onclick:function(){copiar(a.processo);}}):null,
+    a.processo?h("button",{class:"btn danger sm",type:"button",text:"Erro no processo",onclick:function(){erroNoProcesso(a);}}):null);
   var main=h("div",{class:"ag-main"},tags,
     h("div",{class:"ag-vara",text:a.vara||""}),
     proc,
     partes?h("div",{class:"ag-meta",text:partes}):null,
-    a.valor!=null&&a.valor!==""?h("div",{class:"ag-valor",text:"Valor da ação: "+brl(+a.valor)}):null);
+    a.valor!=null&&a.valor!==""?h("div",{class:"ag-valor",text:"Valor da ação: "+brl(+a.valor)}):null,
+    a.atencao?h("div",{class:"ag-note",style:"--c:var(--brand-red-text)"},h("b",{text:"Ponto de atenção"}),a.atencao):null,
+    a.oportunidade?h("div",{class:"ag-note",style:"--c:var(--success)"},h("b",{text:"Oportunidade em mesa"}),a.oportunidade):null);
   if(virt||a.link){
     var l=h("div",{class:"ag-link"});
     if(linkOk(a.link)){
@@ -1546,12 +1571,12 @@ function itemAgenda(a){
     if(a.senha){l.appendChild(h("span",{class:"k",text:"Senha"}));l.appendChild(h("code",{text:a.senha}));}
     main.appendChild(l);
   }
-  return h("div",{class:"ag-item"},h("div",{class:"ag-hora",text:a.hora||""}),main);
+  return h("div",{class:"ag-item "+(virt?"v":"p")},h("div",{class:"ag-hora",text:a.hora||""}),main);
 }
 
 /* ----- Importação da agenda e vínculo de contas (liderança) ----- */
 function hdrKey(c){return norm(c).replace(/[^a-z0-9]+/g," ").trim();}
-var AG_COLS=[["dia",/^dia/],["hora",/^horario|^hora/],["formato",/^formato|^modalidade/],["tipo",/^tipo/],["trt",/^trt/],["vara",/forum|vara/],["proc",/processo/],["rec",/^reclamante/],["rda",/^reclamada/],["valor",/^valor/],["link",/^link/],["reuniao",/^id da reuniao/],["senha",/^senha/],["adv",/^advogado|^responsavel/]];
+var AG_COLS=[["dia",/^dia/],["hora",/^horario|^hora/],["formato",/^formato|^modalidade/],["tipo",/^tipo/],["trt",/^trt/],["vara",/forum|vara/],["proc",/processo/],["rec",/^reclamante/],["rda",/^reclamada/],["valor",/^valor/],["link",/^link/],["reuniao",/^id da reuniao/],["senha",/^senha/],["adv",/^advogado|^responsavel/],["atencao",/^ponto de atencao/],["oportunidade",/^oportunidade/]];
 function parseDia(v){
   if(typeof v==="number"&&isFinite(v)){var d=XLSX.SSF.parse_date_code(v);return d?d.y+"-"+pad(d.m)+"-"+pad(d.d):"";}
   var t=String(v||"").trim(),m=/^(\d{4})-(\d{2})-(\d{2})/.exec(t);if(m)return m[1]+"-"+m[2]+"-"+m[3];
@@ -1589,7 +1614,7 @@ function lerAgenda(buf){
     var nz=function(x){x=String(x||"").trim();return /^n[aã]o (se aplica|informada)/i.test(x)?"":x;};
     out[dia+"_"+proc]={id:dia+"_"+proc,dia:dia,hora:parseHora(cel(r,"hora")),formato:fm,tipo:String(cel(r,"tipo")||"").trim(),trt:cel(r,"trt")===""?null:+cel(r,"trt")||null,
       vara:String(cel(r,"vara")||"").trim(),processo:proc,reclamante:String(cel(r,"rec")||"").trim(),reclamadas:String(cel(r,"rda")||"").trim(),
-      valor:parseValor(cel(r,"valor")),link:lk,reuniao:nz(cel(r,"reuniao")),senha:nz(cel(r,"senha")),adv:adv,advKey:norm(adv),semana:mondayKey(parseKey(dia)),importadoEm:Date.now()};
+      valor:parseValor(cel(r,"valor")),link:lk,reuniao:nz(cel(r,"reuniao")),senha:nz(cel(r,"senha")),atencao:String(cel(r,"atencao")||"").trim(),oportunidade:String(cel(r,"oportunidade")||"").trim(),adv:adv,advKey:norm(adv),semana:mondayKey(parseKey(dia)),importadoEm:Date.now()};
   }
   var lista=Object.keys(out).map(function(k){return out[k];});
   return {lista:lista,ignoradas:ign,semLink:semLink,unificados:unif};
@@ -1626,10 +1651,10 @@ function viewImpAgenda(root){
   });
   var bCsv=h("button",{class:"btn ghost",type:"button",text:"Baixar agenda (CSV)",onclick:function(){
     if(!S.agenda.length){toast("Não há agenda para exportar.");return;}
-    var cab=["Dia","Horário","Formato","Tipo","TRT","Fórum / Vara","Nº do processo","Reclamante","Reclamada(s)","Valor da ação (R$)","Link virtual","ID da reunião","Senha","Advogado responsável"];
+    var cab=["Dia","Horário","Formato","Tipo","TRT","Fórum / Vara","Nº do processo","Reclamante","Reclamada(s)","Valor da ação (R$)","Link virtual","ID da reunião","Senha","Advogado responsável","Ponto de atenção","Oportunidade em mesa"];
     var linhas=[cab.map(csvCel).join(";")];
     S.agenda.slice().sort(function(a,b){return (a.dia+a.hora).localeCompare(b.dia+b.hora);}).forEach(function(a){
-      linhas.push([fmtData(a.dia),a.hora,a.formato,a.tipo,a.trt,a.vara,a.processo,a.reclamante,a.reclamadas,a.valor==null?"":String(a.valor).replace(".",","),a.link,a.reuniao,a.senha,a.adv].map(csvCel).join(";"));
+      linhas.push([fmtData(a.dia),a.hora,a.formato,a.tipo,a.trt,a.vara,a.processo,a.reclamante,a.reclamadas,a.valor==null?"":String(a.valor).replace(".",","),a.link,a.reuniao,a.senha,a.adv,a.atencao,a.oportunidade].map(csvCel).join(";"));
     });
     baixar("agenda-"+hoje()+".csv","﻿"+linhas.join("\r\n"),"text/csv;charset=utf-8");
   }});
