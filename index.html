@@ -559,8 +559,10 @@ var FB={
   updateAudiencia:function(id,patch){return this.db.collection("audiencias").doc(id).update(patch);},
   watchAcordos:function(ok,err){var me=this;return this.db.collection("acordos").onSnapshot(function(s){ok(me._map(s));},err);},
   updateAcordo:function(id,patch){return this.db.collection("acordos").doc(id).update(patch);},
-  watchMetasCfg:function(ok,err){return this.db.collection("metas_cfg").doc("main").onSnapshot(function(sn){ok(sn.exists?sn.data():null);},err);},
-  saveMetasCfg:function(d){return this.db.collection("metas_cfg").doc("main").set(d);},
+  _cfgOut:function(c){var o=JSON.parse(JSON.stringify(c||{}));if(o.regras)["conv","aval"].forEach(function(k){if(o.regras[k])o.regras[k]=o.regras[k].map(function(t){return Array.isArray(t)?{q:t[0],v:t[1]}:t;});});return o;},
+  _cfgIn:function(c){if(!c)return c;var o=JSON.parse(JSON.stringify(c));if(o.regras)["conv","aval"].forEach(function(k){if(o.regras[k])o.regras[k]=o.regras[k].map(function(t){return Array.isArray(t)?t:[t.q,t.v];});});return o;},
+  watchMetasCfg:function(ok,err){var me=this;return this.db.collection("metas_cfg").doc("main").onSnapshot(function(sn){ok(sn.exists?me._cfgIn(sn.data()):null);},err);},
+  saveMetasCfg:function(d){return this.db.collection("metas_cfg").doc("main").set(this._cfgOut(d));},
   watchMetas:function(adv,ok,err){var me=this,q=this.db.collection("metas");if(adv)q=q.where("adv","==",adv);return q.onSnapshot(function(sn){ok(me._map(sn));},err);},
   putMeta:function(id,d){d=Object.assign({},d);delete d.id;return this.db.collection("metas").doc(id).set(d);},
   delMeta:function(id){return this.db.collection("metas").doc(id).delete();},
@@ -568,7 +570,7 @@ var FB={
   putMetasSem:function(mk,d){return this.db.collection("metas_sem").doc(mk).set(d);},
   importMetas:function(o){
     var db=this.db,ops=[];
-    ops.push({ref:db.collection("metas_cfg").doc("main"),data:o.cfg});
+    ops.push({ref:db.collection("metas_cfg").doc("main"),data:this._cfgOut(o.cfg)});
     o.docs.forEach(function(d){var x=Object.assign({},d);var id=x.id;delete x.id;ops.push({ref:db.collection("metas").doc(id),data:x});});
     var chain=Promise.resolve();
     for(var i=0;i<ops.length;i+=200){(function(part){chain=chain.then(function(){var b=db.batch();part.forEach(function(op){b.set(op.ref,op.data);});return b.commit();});})(ops.slice(i,i+200));}
