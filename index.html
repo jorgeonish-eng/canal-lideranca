@@ -310,6 +310,7 @@ dl.det a{color:var(--brand-navy-text)}
 .ag-main{display:flex;flex-direction:column;gap:6px;min-width:0}
 .ag-tags{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
 .tag.adv{--c:var(--text-secondary)}
+.tag.fuso{background:#b45309;border-color:#b45309;color:#fff;font-weight:700}
 .tag.virtual{background:#16c060;border-color:#16c060;color:#04210f;font-weight:700}
 .tag.presencial{background:#8b5e3c;border-color:#8b5e3c;color:#fff;font-weight:700}
 .ag-item.v{border-left:6px solid #16c060;background:linear-gradient(90deg,rgba(22,192,96,.10),transparent 55%),var(--surface-0)}
@@ -680,6 +681,8 @@ var Demo=(function(){
     mk(0,"14:00","Presencial","Instrução","8ª Vara do Trabalho de São Bernardo do Campo","1000000-00.2026.5.02.0002","BELTRANO (EXEMPLO)","OUTRA EMPRESA S.A.",19995.31,"Simone Lino");
     mk(2,"10:15","Virtual","Inicial","81ª Vara do Trabalho do Rio de Janeiro","1000000-00.2026.5.01.0003","CICLANO (EXEMPLO)","MAIS UMA LTDA",152000,"Jorge Onishi","https://trt1-jus-br.zoom.us/my/exemplo","","");
     mk(3,"11:00","Virtual","Una","2ª Vara do Trabalho de Blumenau","1000000-00.2026.5.12.0004","EXEMPLO DA SILVA","TERCEIRA LTDA",100164.69,"Simone Lino");
+    mk(1,"09:30","Virtual","Inicial","3ª Vara do Trabalho de Manaus","1000000-00.2026.5.11.0005","EXEMPLO AMAZONAS","EMPRESA NORTE LTDA",30000,"Simone Lino","https://trt11-jus-br.zoom.us/j/0");
+    mk(2,"14:00","Presencial","Una","2ª Vara do Trabalho de Rio Branco","1000000-00.2026.5.14.0006","EXEMPLO ACRE","EMPRESA ACRE LTDA",25000,"Jorge Onishi");
     agenda[0].atencao="Exemplo: a defesa impugna a jornada e os controles de ponto.";
     agenda[0].oportunidade="Exemplo: negociar primeiro as diferenças rescisórias, com base nos contracheques.";
     agenda[1].atencao="Exemplo: laudo pericial impugnado quanto ao enquadramento.";
@@ -1636,7 +1639,7 @@ function semPadrao(){
 }
 function startAgenda(){
   var tok=S.agTok=(S.agTok||0)+1;
-  S.agenda=[];S.agLoaded=false;S.agErr="";S.advNome="";S.agSem="";S.agFil={formato:"",advs:[],dia:"",tipo:"",trt:"",ord:""};S.papel="";
+  S.agenda=[];S.agLoaded=false;S.agErr="";S.advNome="";S.agSem="";S.agFil={formato:"",advs:[],dia:"",tipo:"",trt:"",ord:"",fuso:""};S.papel="";
   var onData=function(l){
     if(tok!==S.agTok)return;
     S.agenda=l;S.agLoaded=true;S.agErr="";
@@ -1670,8 +1673,8 @@ function viewAgenda(root){
   renderAgenda();
 }
 function trtDe(a){
-  var n=a&&a.trt?+a.trt:0;
-  if(!n){var m=/\.5\.(\d{2})\./.exec(String((a&&a.processo)||""));if(m)n=+m[1];}
+  var m=/\.5\.(\d{2})\./.exec(String((a&&a.processo)||"")),n=m?+m[1]:0;
+  if(!n)n=a&&a.trt?+a.trt:0;
   return n||0;
 }
 function selFil(id,rot,opts,val,onch){
@@ -1726,18 +1729,20 @@ function renderAgenda(){
   var optTipo=[["","Todos os tipos"]].concat(Object.keys(tipos).sort().map(function(t){return [t,t];}));
   var optTrt=[["","Todos os TRTs"]].concat(Object.keys(trts).map(Number).sort(function(x,y){return x-y;}).map(function(t){return [String(t),"TRT "+t];}));
   var optOrd=[["","Dia e horário"],["maior","Maior valor da ação"],["menor","Menor valor da ação"]];
-  var ativos=!!(F.dia||F.tipo||F.trt||F.ord||F.formato||(S.isLider&&F.advs&&F.advs.length));
+  var ativos=!!(F.dia||F.tipo||F.trt||F.ord||F.fuso||F.formato||(S.isLider&&F.advs&&F.advs.length));
   box.appendChild(h("div",{class:"filters"},
     selFil("agf-dia","Dia",optDia,F.dia,function(v){F.dia=v;renderAgenda();}),
     selFil("agf-tipo","Tipo de audiência",optTipo,F.tipo,function(v){F.tipo=v;renderAgenda();}),
     selFil("agf-trt","TRT",optTrt,F.trt,function(v){F.trt=v;renderAgenda();}),
+    selFil("agf-fuso","Fuso horário",[["","Todos"],["dif","Diferente de Brasília"]],F.fuso,function(v){F.fuso=v;renderAgenda();}),
     selFil("agf-ord","Ordenar por",optOrd,F.ord,function(v){F.ord=v;renderAgenda();}),
-    ativos?h("div",{class:"field",style:"align-self:end"},h("button",{class:"btn ghost sm",type:"button",text:"Limpar filtros",onclick:function(){S.agFil={formato:"",advs:[],dia:"",tipo:"",trt:"",ord:""};renderAgenda();}})):null));
+    ativos?h("div",{class:"field",style:"align-self:end"},h("button",{class:"btn ghost sm",type:"button",text:"Limpar filtros",onclick:function(){S.agFil={formato:"",advs:[],dia:"",tipo:"",trt:"",ord:"",fuso:""};renderAgenda();}})):null));
   var lista=daSemana.filter(function(a){
     var v=String(a.formato||"").toLowerCase().indexOf("virtual")===0;
     if(F.dia&&a.dia!==F.dia)return false;
     if(F.tipo&&a.tipo!==F.tipo)return false;
     if(F.trt&&String(trtDe(a))!==String(F.trt))return false;
+    if(F.fuso==="dif"&&!fusoDe(a).dif)return false;
     if(S.agFil.formato==="virtual"&&!v)return false;
     if(S.agFil.formato==="presencial"&&v)return false;
     if(S.isLider&&S.agFil.advs.length&&!S.agFil.advs.some(function(v){return v==="__corr"?ehCorrespondente(a.adv):a.adv===v;}))return false;
@@ -1751,7 +1756,8 @@ function renderAgenda(){
     return (a.dia+a.hora).localeCompare(b.dia+b.hora);
   });
   var nv=lista.filter(function(a){return String(a.formato||"").toLowerCase().indexOf("virtual")===0;}).length;
-  box.appendChild(h("p",{class:"muted",text:lista.length+" audiência(s) · "+(lista.length-nv)+" presencial(is) · "+nv+" virtual(is)"}));
+  var nf=lista.filter(function(a){return fusoDe(a).dif;}).length;
+  box.appendChild(h("p",{class:"muted",text:lista.length+" audiência(s) · "+(lista.length-nv)+" presencial(is) · "+nv+" virtual(is)"+(nf?" · "+nf+" em fuso diferente de Brasília":"")}));
   if(!lista.length){box.appendChild(h("p",{text:"Nenhuma audiência com esses filtros."}));return;}
   var hojeK=dateKey0(),dia="",sec=null;
   lista.forEach(function(a){
@@ -1782,11 +1788,29 @@ function erroNoProcesso(a){
   if(tem)confirmar("Substituir rascunho","Você tem um pedido em rascunho. Registrar o erro deste processo vai substituí-lo.","Substituir").then(function(ok){if(ok)aplica();});
   else aplica();
 }
+/* Fuso horário do local da audiência (Brasília = UTC-3). Regra por TRT; o Acre é identificado pelo nome da vara. */
+var ACRE_VARAS=/rio branco|cruzeiro do sul|sena madureira|tarauaca|feijo|brasileia|epitaciolandia|xapuri|placido de castro|senador guiomard|mancio lima/;
+function fusoDe(a){
+  var t=trtDe(a),v=norm(a.vara||""),r={off:-3,reg:"Brasília"};
+  if(t===11)r={off:-4,reg:"Amazonas e Roraima"};
+  else if(t===14)r=ACRE_VARAS.test(v)?{off:-5,reg:"Acre"}:{off:-4,reg:"Rondônia"};
+  else if(t===23)r={off:-4,reg:"Mato Grosso"};
+  else if(t===24)r={off:-4,reg:"Mato Grosso do Sul"};
+  r.dif=r.off+3;
+  return r;
+}
+function horaBsb(hora,dif){
+  var m=/^(\d{1,2}):(\d{2})/.exec(String(hora||""));if(!m)return"";
+  var min=((+m[1]*60+ +m[2]-dif*60)%1440+1440)%1440;
+  return pad(Math.floor(min/60))+":"+pad(min%60);
+}
+function fusoTxt(f){var n=Math.abs(f.dif);return "UTC"+f.off+" ("+n+(n===1?" hora":" horas")+" "+(f.dif<0?"a menos":"a mais")+" que Brasília)";}
 function itemAgenda(a){
   var virt=String(a.formato||"").toLowerCase().indexOf("virtual")===0;
   var tags=h("div",{class:"ag-tags"},
     h("span",{class:"tag "+(virt?"virtual":"presencial"),text:a.formato||""}),
     h("span",{class:"tag adv",text:a.tipo||""}),
+    fusoDe(a).dif?h("span",{class:"tag fuso",title:"Fuso diferente de Brasília",text:"Fuso: "+fusoDe(a).reg}):null,
     S.isLider?(a.adv?advChip(a.adv):h("span",{class:"advchip",style:"--ac:#a83440",text:"Sem responsável"})):null);
   var partes=[a.reclamante,a.reclamadas].filter(Boolean).join(" x ");
   var proc=h("div",{class:"ag-link"},h("span",{class:"ag-proc",text:a.processo||""}),
@@ -1794,6 +1818,8 @@ function itemAgenda(a){
     a.processo?h("button",{class:"btn danger sm",type:"button",text:"Erro no processo",onclick:function(){erroNoProcesso(a);}}):null);
   var main=h("div",{class:"ag-main"},tags,
     h("div",{class:"ag-vara",text:a.vara||""}),
+    fusoDe(a).dif?h("div",{class:"ag-note",style:"--c:#b45309"},h("b",{text:"Fuso horário diferente de Brasília"}),
+      fusoDe(a).reg+": "+fusoTxt(fusoDe(a))+". Horário da pauta ("+(a.hora||"")+") no local da vara; em Brasília: "+horaBsb(a.hora,fusoDe(a).dif)+"."):null,
     proc,
     partes?h("div",{class:"ag-meta",text:partes}):null,
     a.valor!=null&&a.valor!==""?h("div",{class:"ag-valor",text:"Valor da ação: "+brl(+a.valor)}):null,
